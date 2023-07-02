@@ -1,0 +1,128 @@
+name: ekhd
+version: '3.9'
+services:
+  spark-master:
+    container_name: khlupnov-spark-master
+    hostname: master
+     #   image: datamap-docker.artifacts.tn.tngrp.ru/apache/spark:3.4.1    
+     #   image: datamap-docker.artifacts.tn.tngrp.ru/apache/spark:3.3.2   
+    # image: datamap-docker.artifacts.tn.tngrp.ru/apache/spark-standalone:3.3.2
+    image: datamap-docker.artifacts.tn.tngrp.ru/apache/spark:3.3.2
+    privileged: true
+    ports:
+      # Spark job Web UI: increments for each successive job
+      - 4040:4040
+      - 6066:6066
+      - 7077:7077
+       # Spark Master Web UI
+      - 8080:8080
+    volumes:
+      - ./conf/master:/conf
+      - ./data:/tmp/data
+      - ./logs:/usr/local/spark/logs/spark
+    environment:
+      SPARK_PUBLIC_DNS: localhost
+      SPARK_LOCAL_IP: 172.28.1.1
+      SPARK_MASTER_HOST: 172.28.1.1
+      SPARK_LOCAL_HOSTNAME: master
+      HDFS_NAMENODE_USER: root
+      HDFS_DATANODE_USER: root
+      HDFS_SECONDARYNAMENODE_USER: root
+      YARN_RESOURCEMANAGER_USER: root
+      YARN_NODEMANAGER_USER: root
+#    command: "/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master -h master"  
+    networks:
+      spark_net:
+        ipv4_address: 172.28.1.1
+
+  ########################################################################################
+  #   Zeppelin
+  ########################################################################################
+  zeppelin:
+    image: datamap-docker.artifacts.tn.tngrp.ru/apache/zeppelin:0.10.1
+#    build: '../zeppelin-bigdata-docker'
+    hostname: zeppelin
+    container_name: khlupnov-zeppelin  
+    depends_on:
+      - spark-master
+    volumes:
+      - ./zeppelin_notebooks:/zeppelin_notebooks
+      - ./data:/data
+      - ./logs/zeppelin:/logs
+    environment:
+      ZEPPELIN_ADDR: "172.28.1.5"
+      ZEPPELIN_PORT: 8890
+      ZEPPELIN_NOTEBOOK_DIR: '/zeppelin_notebooks'
+      ZEPPELIN_IN_DOCKER: true
+      ZEPPELIN_LOG_DIR: '/logs'
+      SPARK_HOME: '/usr/local/spark'
+      SPARK_MASTER: "http://master:7077"
+    expose:
+      - 8890
+    ports:
+      - 8890:8890
+    networks:
+      spark_net:
+        ipv4_address: 172.28.1.5
+#  spark-node-1:
+#  livy:
+#    image: datamap-docker.artifacts.tn.tngrp.ru/apache/livy-dev-server:0.7.1
+#    command: bin/livy-server
+#    container_name: livy
+#    environment:
+#      SPARK_CONF_DIR: /conf
+#      SPARK_DIVER_CORES: 1
+#      SPARK_DRIVER_MEMORY: 1g
+#      SPARK_MASTER_ENDPOINT: master
+#      SPARK_MASTER_PORT: 7077
+#      LIVY_CONF_DIR: /conf
+#      LIVY_LOG_DIR: /logs
+#      LIVY_FILE_LOCAL_DIR_WHITELIST: /opt/jars
+#    expose:
+#      # remote debug port
+#      - 9010
+#    ports:
+#      - 8998:8998
+#      - 9010:9010
+#    volumes:
+#      - ./conf/livy:/conf
+#      - ./logs/livy:/logs
+#    depends_on:
+#      - "spark-master"
+#    networks:
+#      spark_net:
+#        ipv4_address: 172.28.1.6
+    ########################################################################################
+  #   Database setup
+  ########################################################################################
+#  hivemetastore:
+#    container_name: hivemetastore
+#    hostname: hivemetastore
+#    image: postgres:15.3
+#    environment:
+#      - POSTGRES_USER=datahub
+#      - POSTGRES_PASSWORD=datahub
+#      - PGDATA=/var/lib/postgresql/data/pgdata
+#    ports:
+#      - '5432:5432'
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
+#      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U postgres"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#    networks:
+#      spark_net:
+#        ipv4_address: 172.28.1.4
+
+networks:
+  spark_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+   pgdata: null
